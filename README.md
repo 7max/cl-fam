@@ -36,7 +36,7 @@ For More Full Description description of the API see http://www.docunext.com/wik
 
 See docstrings for exported functions for more info.
 
-If you want to try it out with multiple threads, bind `cl-fam:*FAM*`
+If you want to try it out with multiple threads, bind `CL-FAM:*FAM*`
 in the thread, this way the FAM connection would be open per-thread.
   
 
