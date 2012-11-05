@@ -13,9 +13,26 @@
 (cl-fam:fam-open)
 (cl-fam:fam-monitor-directory "/tmp")
 (loop while (cl-fam:fam-pending-p) collect (fam-next-event t))
+
+;; ((:FAM-EXISTS "wfsnp" #<CL-FAM::FAM-DIRECTORY-REQUEST {10201EC243}>)
+;; (:FAM-EXISTS ".tmp18421" #<CL-FAM::FAM-DIRECTORY-REQUEST {10201EC243}>)
+;; (:FAM-EXISTS "ztjvq" #<CL-FAM::FAM-DIRECTORY-REQUEST {10201EC243}>)
+
+
+;; touch some files in /tmp
+
+;; FAM-NEXT-EVENT returns FAM-EVENT object by default
+
+(loop while (cl-fam:fam-pending-p)
+      as event = (fam:fam-next-event)
+      collect (cons (cl-fam:fam-code event) (cl-fam:fam-filename event)))
+
+;; Multiple monitoring requests can run at the same time, they can be
+;; distinguished by the request object returned by the
+;; FAM-MONITOR-FILE/DIRECTORY functions
 ```
 
-For more full description description of the API see http://www.docunext.com/wiki/Gamin
+For More Full Description description of the API see http://www.docunext.com/wiki/Gamin
 
 See docstrings for exported functions for more info.
 
