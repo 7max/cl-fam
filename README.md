@@ -24,7 +24,7 @@
 ;; FAM-NEXT-EVENT returns FAM-EVENT object by default
 
 (loop while (cl-fam:fam-pending-p)
-      as event = (fam:fam-next-event)
+      as event = (cl-fam:fam-next-event)
       collect (cons (cl-fam:fam-code event) (cl-fam:fam-filename event)))
 
 ;; Multiple monitoring requests can run at the same time, they can be
