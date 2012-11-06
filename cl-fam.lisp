@@ -248,9 +248,8 @@ instance of FAM-EVENT class.
 The FAM-CODE is translated into the keyword, 
 
 With USE-VALUES flag returns event code, filename and FAM-REQUEST
-object that event came from three values.
-
-next FAM-EVENT class, from the specified connection. If USE-VALUES is T, "
+object as three values. 
+"
   (check-connection conn)
   (with-slots (%connection requests) conn 
     (with-foreign-object (event 'famevent)
