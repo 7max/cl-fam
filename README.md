@@ -32,7 +32,7 @@
 ;; FAM-MONITOR-FILE/DIRECTORY functions
 ```
 
-For More Full Description description of the API see http://www.docunext.com/wiki/Gamin
+For more full description of the API see http://www.docunext.com/wiki/Gamin
 
 See docstrings for exported functions for more info.
 
