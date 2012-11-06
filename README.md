@@ -12,7 +12,7 @@
 
 (cl-fam:fam-open)
 (cl-fam:fam-monitor-directory "/tmp")
-(loop while (cl-fam:fam-pending-p) collect (fam-next-event t))
+(loop while (cl-fam:fam-pending-p) collect (cl-fam:fam-next-event t))
 
 ;; ((:FAM-EXISTS "wfsnp" #<CL-FAM::FAM-DIRECTORY-REQUEST {10201EC243}>)
 ;; (:FAM-EXISTS ".tmp18421" #<CL-FAM::FAM-DIRECTORY-REQUEST {10201EC243}>)
