@@ -11,13 +11,17 @@
 (ql:quickload :cl-fam)
 
 (cl-fam:fam-open)
+
 (cl-fam:fam-monitor-directory "/tmp")
-(loop while (cl-fam:fam-pending-p) collect (cl-fam:fam-next-event t))
+
+;; #<CL-FAM::FAM-DIRECTORY-REQUEST {10201EC243}>
+
+(loop while (cl-fam:fam-pending-p)
+      collect (multiple-value-list (cl-fam:fam-next-event t)))
 
 ;; ((:FAM-EXISTS "wfsnp" #<CL-FAM::FAM-DIRECTORY-REQUEST {10201EC243}>)
 ;; (:FAM-EXISTS ".tmp18421" #<CL-FAM::FAM-DIRECTORY-REQUEST {10201EC243}>)
 ;; (:FAM-EXISTS "ztjvq" #<CL-FAM::FAM-DIRECTORY-REQUEST {10201EC243}>)
-
 
 ;; touch some files in /tmp
 
@@ -25,11 +29,19 @@
 
 (loop while (cl-fam:fam-pending-p)
       as event = (cl-fam:fam-next-event)
-      collect (cons (cl-fam:fam-code event) (cl-fam:fam-filename event)))
+      collect (cons (cl-fam:fam-code event)
+                    (cl-fam:fam-filename event)))
+
+;; ((:FAM-EXISTS "wghpa"))
 
 ;; Multiple monitoring requests can run at the same time, they can be
 ;; distinguished by the request object returned by the
-;; FAM-MONITOR-FILE/DIRECTORY functions
+;; FAM-MONITOR-FILE/DIRECTORY functions. Each connection has a file
+;; descriptor which can be used in select/poll, to integrate event
+;; monitoring into multiple wait scenarios
+
+(cl-fam:fam-fd)
+;; 6
 ```
 
 For more full description of the API see http://www.docunext.com/wiki/Gamin
