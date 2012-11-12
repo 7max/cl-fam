@@ -25,5 +25,7 @@
    :fam-monitor-directory
    :fam-monitor-file
    :fam-pending-p
-   :fam-next-event))
+   :fam-next-event
+   :fam-requests
+   :fam-status))
 

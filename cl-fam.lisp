@@ -68,7 +68,7 @@ closed"))
    (filename :initarg :filename :reader fam-filename)
    ;; pointer back to our connection
    (connection :initarg :connection :type fam-connection :reader fam-connection)
-   (status :initform nil))
+   (status :initform nil :reader fam-status))
   (:documentation "Base class for FAM request"))
 
 (defclass fam-directory-request (fam-request) ()
@@ -186,39 +186,76 @@ it without storing it in *FAM*.
         (unless (zerop (%fam-resume-monitor %connection fr))
           (error "FAMResumeMonitor failed with error code ~d" %fam-errno))))))
 
-
-(defun fam-monitor-directory (filename &optional (conn *fam*))
-  "Monitor directory for changes. Returns FAM-REQUEST object, which can be used to cancel
-or suspend the request. The same request object will be returned as a slot of FAM-NEXT-EVENT "
+(defun fam-requests (&optional (conn *fam*))
+  "Return all the active requests for the connection"
   (check-connection conn)
-  (with-slots (%connection requests) conn 
-    (with-foreign-object (fr 'famrequest)
-      (cond ((zerop (%fam-monitor-directory %connection filename fr (null-pointer)))
-             (let* ((reqnum (foreign-slot-value fr 'famrequest 'reqnum))
-                    (req (or (gethash reqnum requests)
-                             (setf (gethash reqnum requests)
-                                   (make-instance 'fam-directory-request
-                                    :connection conn
-                                    :filename filename
-                                    :request-number reqnum)))))
-               req))
-            (t (error "FAMMonitorDirectory failed with error code ~d" %fam-errno))))))
+  (loop for req being each hash-value in (slot-value conn 'requests)
+            collect req))
 
-(defun fam-monitor-file (filename &optional (conn *fam*))
-  "Monitor file for changes. Returns FAM-REQUEST object."
+(defun fam-monitor-any (kind filename &optional (conn *fam*) force-dup)
+  "Common code for FAM-MONITOR-DIRECTORY and FAM-MONITOR-FILE"
+  (declare (type (member :directory :file) kind))
   (check-connection conn)
-  (with-slots (%connection requests) conn 
-    (with-foreign-object (fr 'famrequest)
-      (cond ((zerop (%fam-monitor-file %connection filename fr (null-pointer)))
-             (let* ((reqnum (foreign-slot-value fr 'famrequest 'reqnum))
-                    (req (or (gethash reqnum requests)
-                             (setf (gethash reqnum requests)
-                                   (make-instance 'fam-file-request
-                                    :connection conn
-                                    :filename filename
-                                    :request-number reqnum)))))
-               req))
-            (t (error "FAMMonitorDirectory failed with error code ~d" %fam-errno))))))
+  (setq filename (namestring (merge-pathnames filename)))
+  (let ((existing-req
+          (find-if (lambda (req)
+                     (and
+                      (case kind
+                        (:directory (typep req 'fam-directory-request))
+                        (:file (typep req 'fam-file-request)))
+                      (equal (fam-filename req) filename)
+                      (not (member (fam-status req) '(:canceled :pending-cancel)))))
+                   (fam-requests conn))))
+    (if (or (null existing-req) force-dup)
+        (with-slots (%connection requests) conn 
+          (with-foreign-object (fr 'famrequest)
+            (cond ((zerop
+                    (ecase kind
+                      (:directory (%fam-monitor-directory %connection (namestring filename) fr (null-pointer)))
+                      (:file (%fam-monitor-file %connection (namestring filename) fr (null-pointer)))))
+                   (let* ((reqnum (foreign-slot-value fr 'famrequest 'reqnum))
+                          (req (setf (gethash reqnum requests)
+                                     (case kind
+                                       (:directory 
+                                        (make-instance 'fam-directory-request
+                                         :connection conn
+                                         :filename filename
+                                         :request-number reqnum))
+                                       (:file 
+                                        (make-instance 'fam-file-request
+                                         :connection conn
+                                         :filename filename
+                                         :request-number reqnum))))))
+                     (values req t)))
+                  (t (error "~A failed with error code ~d"
+                            (case kind (:directory "FAMMonitorDirectory")
+                                  (:file "FAMMonitorFile"))
+                            %fam-errno)))))
+        (values existing-req nil))))
+
+(defun fam-monitor-directory (filename &optional (conn *fam*) force-dup)
+  "Monitor directory for changes. Returns FAM-DIRECTORY-REQUEST
+object, which can be used to cancel or suspend the request. The same
+request object will be returned as a slot of FAM-NEXT-EVENT.
+
+In case the directory is already being monitored, return the existing
+request rather then starting a new one, unless FORCE-DUP is also
+specified.
+
+The second returned value will be T if new request was created"
+  (fam-monitor-any :directory filename conn force-dup))
+
+(defun fam-monitor-file (filename &optional (conn *fam*) force-dup)
+  "Monitor file for changes. Returns FAM-FILE-REQUEST object, which
+can be used to cancel or suspend the request. The same request object
+will be returned as a slot of FAM-NEXT-EVENT.
+
+In case the directory is already being monitored, return the existing
+request rather then starting a new one, unless FORCE-DUP is also
+specified.
+
+The second returned value will be T if new request was created"
+  (fam-monitor-any :file filename conn force-dup))
 
 (defun fam-pending-p (&optional (conn *fam*))
   "Return number of events pending on FAM connection or NIL if none are."
