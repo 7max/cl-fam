@@ -196,6 +196,13 @@ it without storing it in *FAM*.
   "Common code for FAM-MONITOR-DIRECTORY and FAM-MONITOR-FILE"
   (declare (type (member :directory :file) kind))
   (check-connection conn)
+  (let ((name (merge-pathnames filename)))
+    ;; append slash in case it was missing
+    (when (and (eq :directory kind)
+               (pathname-name name))
+      (setq name (make-pathname :directory (append (pathname-directory name)
+                                                   (list (pathname-name name))))))
+    (setq filename (namestring name)))
   (setq filename (namestring (merge-pathnames filename)))
   (let ((existing-req
           (find-if (lambda (req)
