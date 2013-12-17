@@ -8,7 +8,7 @@
   :description "Wraps libfam (File access monitor) API. Needs gamin-devel or fam-devel package"
   :author "Max Mikhanosha <max@openchat.com>"
   :license "Apache"
-  :version "1.0"
+  :version "1.1"
   :depends-on (#:cffi #:cffi-grovel #:trivial-garbage)
   :defsystem-depends-on (#:cffi-grovel)
   :components ((:file "package")
