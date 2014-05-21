@@ -54,7 +54,7 @@
 ;;; high level interface
 
 (defclass fam-connection ()
-  ((%connection :initarg :connection :type cffi:foreign-pointer)
+  ((%connection :initarg :connection :type (or null cffi:foreign-pointer))
    ;; Map of request number to request object
    (requests :initform (make-hash-table))
    (fd :initarg :fd :type integer)
