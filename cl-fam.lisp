@@ -14,47 +14,47 @@
 (defcvar ("FAMErrno" %fam-errno) :int)
 
 (defcfun ("FAMOpen2" %fam-open-2) :int
-  (conn famconnection)
+  (conn (:pointer (:struct famconnection)))
   (app-name :string))
 
 (defcfun ("FAMClose" %fam-close) :int
-  (conn famconnection))
+  (conn (:pointer (:struct famconnection))))
 
 (defcfun ("FAMMonitorDirectory" %fam-monitor-directory) :int
-  (conn famconnection)
+  (conn (:pointer (:struct famconnection)))
   (filename :string)
-  (req famrequest)
+  (req (:pointer (:struct famrequest)))
   (userData :pointer))
 
 (defcfun ("FAMMonitorFile" %fam-monitor-file) :int
-  (conn famconnection)
+  (conn (:pointer (:struct famconnection)))
   (filename :string)
-  (req famrequest)
+  (req (:pointer (:struct famrequest)))
   (userData :pointer))
 
 (defcfun ("FAMCancelMonitor" %fam-cancel-monitor) :int
-  (conn famconnection)
-  (req famrequest))
+  (conn (:pointer (:struct famconnection)))
+  (req (:pointer (:struct famrequest))))
 
 (defcfun ("FAMSuspendMonitor" %fam-suspend-monitor) :int
-  (conn famconnection)
-  (req famrequest))
+  (conn (:pointer (:struct famconnection)))
+  (req (:pointer (:struct famrequest))))
 
 (defcfun ("FAMResumeMonitor" %fam-resume-monitor) :int
-  (conn famconnection)
-  (req famrequest))
+  (conn (:pointer (:struct famconnection)))
+  (req (:pointer (:struct famrequest))))
 
 (defcfun ("FAMPending" %fam-pending) :int
-  (conn famconnection))
+  (conn (:pointer (:struct famconnection))))
 
 (defcfun ("FAMNextEvent" %fam-next-event) :int
-  (conn famconnection)
-  (fa famevent))
+  (conn (:pointer (:struct famconnection)))
+  (fa (:pointer (:struct famevent))))
 
 ;;; high level interface
 
 (defclass fam-connection ()
-  ((%connection :initarg :connection :type cffi:foreign-pointer)
+  ((%connection :initarg :connection :type (or null cffi:foreign-pointer))
    ;; Map of request number to request object
    (requests :initform (make-hash-table))
    (fd :initarg :fd :type integer)
@@ -110,10 +110,10 @@ Without REUSE flag, unconditionally create new connection, and return
 it without storing it in *FAM*.
 "
   (if (and reuse (fam-open-p)) *fam* 
-      (let ((%conn (foreign-alloc 'famconnection))) 
+      (let ((%conn (foreign-alloc '(:struct famconnection))))
         (cond ((zerop (%fam-open-2 %conn app-name))
                (let* ((conn (make-instance 'fam-connection :connection %conn
-                             :fd (foreign-slot-value %conn 'famconnection 'fd)))
+                             :fd (foreign-slot-value %conn '(:struct famconnection) 'fd)))
                       (%open-flag (slot-value conn '%open-flag)))
                  (tg:finalize conn (lambda ()
                                      (when (first %open-flag) 
@@ -155,8 +155,8 @@ it without storing it in *FAM*.
       (:pending-cancel (error "Already requested cancel"))
       (:canceled (error "Already canceled"))
       (t (with-slots (%connection) connection 
-           (with-foreign-object (fr 'famrequest)
-             (setf (foreign-slot-value fr 'famrequest 'reqnum)
+           (with-foreign-object (fr '(:struct famrequest))
+             (setf (foreign-slot-value fr '(:struct famrequest) 'reqnum)
                    request-number)
              (if (zerop (%fam-cancel-monitor %connection fr))
                  (setf status :pending-cancel)
@@ -168,8 +168,8 @@ it without storing it in *FAM*.
   (with-slots (connection request-number) req
     (check-connection connection)
     (with-slots (%connection requests) connection 
-      (with-foreign-object (fr 'famrequest)
-        (setf (foreign-slot-value fr 'famrequest 'reqnum)
+      (with-foreign-object (fr '(:struct famrequest))
+        (setf (foreign-slot-value fr '(:struct famrequest) 'reqnum)
               request-number)
         (unless (zerop (%fam-suspend-monitor %connection fr))
           (error "FAMSuspendMonitor failed with error code ~d" %fam-errno))))))
@@ -180,8 +180,8 @@ it without storing it in *FAM*.
   (with-slots (connection request-number) req
     (check-connection connection)
     (with-slots (%connection requests) connection 
-      (with-foreign-object (fr 'famrequest)
-        (setf (foreign-slot-value fr 'famrequest 'reqnum)
+      (with-foreign-object (fr '(:struct famrequest))
+        (setf (foreign-slot-value fr '(:struct famrequest) 'reqnum)
               request-number)
         (unless (zerop (%fam-resume-monitor %connection fr))
           (error "FAMResumeMonitor failed with error code ~d" %fam-errno))))))
@@ -215,12 +215,12 @@ it without storing it in *FAM*.
                    (fam-requests conn))))
     (if (or (null existing-req) force-dup)
         (with-slots (%connection requests) conn 
-          (with-foreign-object (fr 'famrequest)
+          (with-foreign-object (fr '(:struct famrequest))
             (cond ((zerop
                     (ecase kind
                       (:directory (%fam-monitor-directory %connection (namestring filename) fr (null-pointer)))
                       (:file (%fam-monitor-file %connection (namestring filename) fr (null-pointer)))))
-                   (let* ((reqnum (foreign-slot-value fr 'famrequest 'reqnum))
+                   (let* ((reqnum (foreign-slot-value fr '(:struct famrequest) 'reqnum))
                           (req (setf (gethash reqnum requests)
                                      (case kind
                                        (:directory 
@@ -296,13 +296,13 @@ object as three values.
 "
   (check-connection conn)
   (with-slots (%connection requests) conn 
-    (with-foreign-object (event 'famevent)
+    (with-foreign-object (event '(:struct famevent))
       (if (plusp (%fam-next-event %connection event)) 
-          (let* ((reqnum (foreign-slot-value event 'famevent 'fr))
+          (let* ((reqnum (foreign-slot-value event '(:struct famevent) 'fr))
                  (request (gethash reqnum requests))
-                 (hostname (foreign-slot-value event 'famevent 'hostname))
-                 (filename (foreign-string-to-lisp (foreign-slot-pointer event 'famevent 'filename)))
-                 (code (translate-fam-code (foreign-slot-value event 'famevent 'code))))
+                 (hostname (foreign-slot-value event '(:struct famevent) 'hostname))
+                 (filename (foreign-string-to-lisp (foreign-slot-pointer event '(:struct famevent) 'filename)))
+                 (code (translate-fam-code (foreign-slot-value event '(:struct famevent) 'code))))
             (when (and request (eq code :fam-acknowledge))
               (with-slots (status) request 
                 (setf status :canceled)
